@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8" />
+<title>Audio Socket Example</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    
+<script>
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+var context = new AudioContext();
+
+var myBuffer;
+
+var request = new XMLHttpRequest();
+request.open('GET', 'pcm_audio.wav', true);
+request.responseType = 'arraybuffer';
+
+
+// Decode asynchronously
+request.onload = function() {
+  context.decodeAudioData(request.response, function(theBuffer) {
+    myBuffer = theBuffer;
+  });
+}
+request.send();
+
+function playSound(buffer) {
+  var source = context.createBufferSource();
+  source.buffer = buffer;
+  source.start(0);
+  source.connect(context.destination);
+}
+
+function play(e) {
+    playSound(myBuffer);
+}
+
+
+
+</script>
+<center>
+	<h2> Basic Player Of Static File</h2>
+<form>
+<form>
+<input type="button" style="height: 75px; width: 150px;" value="Play" onClick="play()">
+</form>
+</center>
+<audio>
+</body>
+</html>

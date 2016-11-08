@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8" />
+<title>Audio Socket Example</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+<script src=Smooth-0.1.7.js></script>
+    
+<script>
+
+var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+
+var bufferSize = 1024;
+var myPCMProcessingNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+var tempData = new Float32Array(320);
+var audioData;
+var source;
+
+myPCMProcessingNode.onaudioprocess = function(e) {
+    var op = e.outputBuffer.getChannelData(0);
+    for (var i=0; i < 882; i++ ){
+        if (audioData != null){
+            op[i] = audioData(i);
+        }
+        
+
+    }
+}
+
+function int16ToFloat32(inputArray, startIndex, length) {
+    var output = new Float32Array(inputArray.length-startIndex);
+    for (var i = startIndex; i < length; i++) {
+        var int = inputArray[i];
+        // If the high bit is on, then it is a negative number, and actually counts backwards.
+        var float = (int >= 0x8000) ? -(0x10000 - int) / 0x8000 : int / 0x7FFF;
+        output[i] = float;
+    }
+    return output;
+}
+
+
+function connect() {
+	source = audioContext.createBufferSource();
+	source.connect(myPCMProcessingNode);
+	myPCMProcessingNode.connect(audioContext.destination);
+    var ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = function() {
+        console.log('Connected');
+        source.start(0);
+        
+    };
+    ws.onmessage = function(event) {
+        tempData = int16ToFloat32(new Uint16Array(event.data), 0, 320);
+        audioData =  Smooth(tempData, { 
+            scaleTo: 882, 
+            method: 'sinc',
+            sincFilterSize: 8,
+            sincWindow: function(x) { return Math.exp(-x * x); }
+            });
+    };
+}
+
+</script>
+<center>
+	<h2> Resampling with Smooth.js</h2>
+    <p> call 07520 616161 then click connect</p>
+<form>
+<input type="button" value="Connect" onClick="connect()">
+</form>
+</center>
+<audio>
+</body>
+</html>

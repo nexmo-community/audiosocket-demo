@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8" />
+<title>Audio Socket Example</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    
+<script>
+
+var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+
+
+function connect() {
+    var ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = function() {
+        console.log('Connected');
+        
+    };
+    ws.onmessage = function(event) {
+      var source = audioContext.createBufferSource();
+      source.buffer = audioContext.createBuffer(event.data, false);
+      source.connect(audioContext.destination);
+      source.start();
+    };
+}
+
+
+
+</script>
+<center>
+	<h2> Basic Player using decode audio data</h2>
+    <p> call 07520 616161 then click connect</p>
+<form>
+<form>
+<input type="button" style="height: 75px; width: 150px;" value="Connect" onClick="connect()">
+</form>
+</center>
+<audio>
+</body>
+</html>
