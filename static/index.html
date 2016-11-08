@@ -1,22 +1,53 @@
 <!DOCTYPE html>
 <head>
 <meta charset="utf-8" />
-<title>Audio Socket Example</title>
+<title>Audio Socket Visualisation</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+body {margin:0px; padding:0px;}
+h2 {font-family: "helvetica neue", "arial", sans-serif; text-align:center;}
+canvas {
+  border-top: 1px solid black;
+  border-bottom: 1px solid black;
+  margin-bottom: -3px;
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.7),
+              0 3px 4px rgba(0,0,0,0.7);
+}
+</style>
 </head>
 <body>
-    
+
+<center>
+<canvas class="visualizer" width="800" height="400"></canvas>
+<br><br>
+<form>
+<input type="button" style="height: 75px; width: 150px;" value="Connect" onClick="connect()">
+</form>
+</center> 
+
 <script>
 
 var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 var count = 0;
 var startTime;
 
+var analyserNode = audioContext.createAnalyser();
+analyserNode.fftSize = 1024;
+var bufferLength = analyserNode.frequencyBinCount;
+var dataArray = new Uint8Array(bufferLength);
+
+var canvas = document.querySelector('.visualizer');
+var canvasCtx = canvas.getContext("2d");
+var WIDTH = canvas.width;
+var HEIGHT = canvas.height;
+canvasCtx.clearRect(0, 0, WIDTH, HEIGHT );
+
 function connect() {
     var ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
     ws.binaryType = 'arraybuffer';
     ws.onopen = function() {
         console.log('Connected');
+        draw();
     };
 	
     ws.onmessage = function(event) {
@@ -33,21 +64,35 @@ function connect() {
 
 function playSound(buffer, playTime) {
   var source = audioContext.createBufferSource();
-  console.log(playTime);
   source.buffer = buffer;
   source.start(playTime);
+  source.connect(analyserNode);
   source.connect(audioContext.destination);
 }
 
+
+function draw() {
+  drawVisual = requestAnimationFrame(draw);
+  analyserNode.getByteFrequencyData(dataArray);
+  console.log(dataArray);
+  canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+  canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+  var barWidth = (WIDTH / bufferLength) * 5;
+  var barHeight;
+  var x = 0;
+  for(var i = 0; i < bufferLength/2; i++) {
+    barHeight = dataArray[i]*2;
+    canvasCtx.fillStyle = 'rgb(0, 100,' + (barHeight+500) + ')';
+    canvasCtx.fillRect(x,HEIGHT-barHeight/2,barWidth,barHeight/2);
+    x += barWidth + 1;
+  }
+};
+
+
+
+
+
+
 </script>
-<center>
-	<h2> Clean Player no conversion or transcoding</h2>
-    <p> call 07520 616161 then click connect</p>
-<form>
-<form>
-<input type="button" style="height: 75px; width: 150px;" value="Connect" onClick="connect()">
-</form>
-</center>
-<audio>
 </body>
 </html>

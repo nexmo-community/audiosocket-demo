@@ -39,7 +39,21 @@ def broadcast(payload):
 	print "Sending {} bytes".format(str(len(payload)))
 	for conn in clients:
 		conn.write_message(payload, binary=True)
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render("static/index.html")
+
+class EventHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.set_status(204)
+
+
+class NCCOHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render("static/websocket.json")
 		
+						
 class ServerWSHandler(tornado.websocket.WebSocketHandler):
 	connections = []
 	def open(self):
@@ -60,8 +74,6 @@ class ServerWSHandler(tornado.websocket.WebSocketHandler):
 
 class ClientWSHandler(tornado.websocket.WebSocketHandler):
 	connections = []
-	def check_origin(self, origin):
-	    return True
 	def open(self):
 		print("Browser Client Connected")
 		self.connections.append(self)
@@ -72,13 +84,18 @@ class ClientWSHandler(tornado.websocket.WebSocketHandler):
 		print("Browser Client Disconnected")
 		self.connections.remove(self)
 		clients.remove(self)
+
+
      
-static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static/')
+print static_path
 application = tornado.web.Application([
-	(r'/', tornado.web.StaticFileHandler, {'path': static_path + 'clean.html'}),
+	(r"/", MainHandler),
+	(r"/event", EventHandler),
+	(r"/ncco", NCCOHandler),
     (r'/socket', ServerWSHandler),
 	(r'/browser', ClientWSHandler),
-	(r'/s/(.*)', tornado.web.StaticFileHandler, {'path': static_path}),
+	(r'/s/(.*)', tornado.web.StaticFileHandler, {'path': static_path})
 ])
 
 

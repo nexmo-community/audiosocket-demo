@@ -1,0 +1,11 @@
+[
+    {
+    	"action": "talk",
+    	"text": "Connecting to Conversation"
+    },
+    {
+        "action": "conversation",
+        "name": "monitored",
+        "eventUrl" : "http://2bwz8nkbmfgc.runscope.net"
+    }
+]
