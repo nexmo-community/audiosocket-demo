@@ -1,18 +1,53 @@
 <!DOCTYPE html>
 <head>
 <meta charset="utf-8" />
-<title>Audio Socket</title>
+<title>Audio Socket Example</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
+    
+<script>
+
+var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+var count = 0;
+var startTime;
+
+function connect() {
+    var ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = function() {
+        console.log('Connected');
+    };
+	
+    ws.onmessage = function(event) {
+		if (count ==0){
+			startTime = audioContext.currentTime;
+		}
+	    audioContext.decodeAudioData(event.data, function(data) {
+			count ++;
+			var playTime = startTime + (count *0.2)
+			playSound(data, playTime);
+	    });      
+    };
+}
+
+function playSound(buffer, playTime) {
+  var source = audioContext.createBufferSource();
+  console.log(playTime);
+  source.buffer = buffer;
+  source.start(playTime);
+  source.connect(audioContext.destination);
+}
+
+</script>
 <center>
-	<h2>Audio Socket Tests</h2>
-	<p><a href="/s/test.html">Web Audio Tone Test</a></p>
-	<p><a href="/s/clean.html">Clean Player No Transcoding</a></p>
-	<p><a href="/s/basic.html">Basic Player</a></p>
-	<p><a href="/s/stretch.html">Stretched Samples</a></p>
-	<p><a href="/s/interpolate.html">Interpolated Samples</a></p>
-	<p><a href="/s/smooth.html">Resampled with smooth.js</a></p>
+	<h2> Clean Player no conversion or transcoding</h2>
+    <p> call 07520 616161 then click connect</p>
+<form>
+<form>
+<input type="button" style="height: 75px; width: 150px;" value="Connect" onClick="connect()">
+</form>
 </center>
+<audio>
 </body>
 </html>
