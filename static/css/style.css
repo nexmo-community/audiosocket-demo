@@ -1,0 +1,85 @@
+* { -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box; }
+
+html {
+  height: 100%;
+}
+body {
+  color: #fff;
+  margin: 0;
+  padding: 2em 0 2em;
+  font-family: 'Noto Sans', sans-serif;
+  background: #517fa4;
+  background: -webkit-linear-gradient(to bottom, #516395 , #020527);
+  background: url(../images/pattern-pentagon-fade.png) left top repeat-x,
+   linear-gradient(to bottom, #8E54E9 , #020527);
+  position: relative;
+}
+.main {
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+h1, h2, h3 {
+  margin: 0;
+  text-rendering: optimizeLegibility;
+}
+header {
+  margin: 1em auto;
+  text-align: center;
+  z-index: 1;
+}
+header h1 {
+  font-family: 'Alfa Slab One';
+  font-size: 2.6em;
+  font-weight: normal;
+}
+canvas {
+  width: 100%;
+  background: transparent;
+}
+footer {
+  position: fixed;
+  bottom: 1em;
+  right: 1em;
+  opacity: 0.75;
+}
+footer a {
+  color: pink;
+}
+input {
+  display: block;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: none;
+  border-radius: 4px;
+  color: #333;
+  font-size: 1.1em;
+}
+button {
+  display: block;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent;
+  color: #fff;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  width: 200px;
+  height: 200px;
+  font-size: 140px;
+  opacity: 0.4;
+  outline: 0; 
+
+  position: absolute;
+  top: calc(50% - 50px);
+  left: calc(50% - 100px);
+}
+button:hover {
+  opacity: 0.8;
+}
+button:active {
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+}
+.active header > p, .active  button {
+  display: none;
+}

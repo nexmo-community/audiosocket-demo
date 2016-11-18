@@ -1,29 +1,28 @@
 <!DOCTYPE html>
 <head>
-<meta charset="utf-8" />
-<title>Audio Socket Visualisation</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-body {margin:0px; padding:0px;}
-h2 {font-family: "helvetica neue", "arial", sans-serif; text-align:center;}
-canvas {
-  border-top: 1px solid black;
-  border-bottom: 1px solid black;
-  margin-bottom: -3px;
-  box-shadow: 0 -2px 4px rgba(0,0,0,0.7),
-              0 3px 4px rgba(0,0,0,0.7);
-}
-</style>
+  <meta charset="utf-8">
+  <title>Audio Socket Visualisation</title>
+  <meta name="description" content="Nexmo Voice API over WebSocket Demo">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Alfa+Slab+One|Noto+Sans">
+  <link rel="stylesheet" href="https://opensource.keycdn.com/fontawesome/4.7.0/font-awesome.min.css" integrity="sha384-dNpIIXE8U05kAbPhy3G1cz+yZmTzA6CY8Vg/u2L9xRnHjJiAK76m2BIEaSEV+/aU" crossorigin="anonymous">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<center>
-<canvas class="visualizer" width="800" height="400"></canvas>
-<br><br>
-<form>
-<input type="button" style="height: 75px; width: 150px;" value="Connect" onClick="connect()">
-</form>
-</center> 
+<header>
+  <h1>Call +1 (973) 298-4300</h1>
+  <p>Then click the Connect button to start.</p>
+</header>
+<section class="main">
+  <canvas class="visualizer" width="800" height="400"></canvas>
+  <button onClick="connect()"><i class="fa fa-compress"></i></button>
+  <!-- <input type="button" value="Connect" onClick="connect()"> -->
+</section>
+
+<footer>
+  Powered by <a href="https://nexmo.com" target="_blank">Nexmo</a> Voice API
+</footer>
 
 <script>
 
@@ -37,28 +36,34 @@ var bufferLength = analyserNode.frequencyBinCount;
 var dataArray = new Uint8Array(bufferLength);
 
 var canvas = document.querySelector('.visualizer');
-var canvasCtx = canvas.getContext("2d");
-var WIDTH = canvas.width;
-var HEIGHT = canvas.height;
-canvasCtx.clearRect(0, 0, WIDTH, HEIGHT );
+var canvasCtx = canvas.getContext('2d');
+resizeCanvas();
+canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+window.addEventListener('resize', resizeCanvas, false);
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight - document.querySelector('footer').offsetHeight - 32;
+}
 
 function connect() {
     var ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
     ws.binaryType = 'arraybuffer';
     ws.onopen = function() {
-        console.log('Connected');
-        draw();
+      console.log('Connected');
+      document.body.classList.add('active');
+      draw();
     };
-	
+
     ws.onmessage = function(event) {
 		if (count ==0){
 			startTime = audioContext.currentTime;
 		}
-	    audioContext.decodeAudioData(event.data, function(data) {
+	  audioContext.decodeAudioData(event.data, function(data) {
 			count ++;
 			var playTime = startTime + (count *0.2)
 			playSound(data, playTime);
-	    });      
+	    });
     };
 }
 
@@ -72,24 +77,30 @@ function playSound(buffer, playTime) {
 
 
 function draw() {
+  canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
   drawVisual = requestAnimationFrame(draw);
   analyserNode.getByteFrequencyData(dataArray);
-  console.log(dataArray);
-  canvasCtx.fillStyle = 'rgb(0, 0, 0)';
-  canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-  var barWidth = (WIDTH / bufferLength) * 5;
-  var barHeight;
-  var x = 0;
-  for(var i = 0; i < bufferLength/2; i++) {
-    barHeight = dataArray[i]*2;
-    canvasCtx.fillStyle = 'rgb(0, 100,' + (barHeight+500) + ')';
-    canvasCtx.fillRect(x,HEIGHT-barHeight/2,barWidth,barHeight/2);
-    x += barWidth + 1;
+  //console.log(dataArray);
+  canvasCtx.fillStyle = 'transparent';
+  canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+  var SPACING = 5;
+  var BAR_WIDTH = 2;
+  var numBars = Math.round(canvas.width / SPACING);
+  var multiplier = (bufferLength / 5.5) / numBars;
+
+  for (var i = 0; i < numBars; ++i) {
+      var magnitude = 0;
+      var offset = Math.floor( i * multiplier );
+      for (var j = 0; j< multiplier; j++)
+          magnitude += dataArray[offset + j];
+
+      magnitude = magnitude / multiplier;
+      canvasCtx.fillStyle = 'hsl( ' + Math.round((i*360)/numBars) + ', 100%, 50%)';
+      canvasCtx.fillRect(i * SPACING, canvas.height, BAR_WIDTH, -magnitude);
   }
-};
 
-
-
+}
 
 
 
