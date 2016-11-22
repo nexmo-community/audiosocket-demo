@@ -89,7 +89,7 @@ def connect_vapi():
 def disconnect_vapi():
 	client.update_call(vapi_call_uuid, action='hangup')
 	global vapi_connected
-	vapi_connected = True
+	vapi_connected = False
 	return True
 
 #The Handlers
