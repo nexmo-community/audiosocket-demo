@@ -1,11 +1,11 @@
 [
     {
     	"action": "talk",
-    	"text": "Connecting to Conversation"
+    	"text": "Connecting to Audio Socket Conf"
     },
     {
         "action": "conversation",
-        "name": "monitored",
-        "eventUrl" : "http://2bwz8nkbmfgc.runscope.net"
+        "name": "audiosocket",
+        "eventUrl" : ["http://audiosocket.sammachin.com:8000/event"]
     }
 ]

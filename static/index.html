@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="/s/css/style.css">
 </head>
 <body>
-
 <header>
   <h1>Call +1 (973) 298-4300</h1>
   <p>Then click the Connect button to start.</p>
@@ -19,9 +18,9 @@
   <button onClick="connect()"><i class="fa fa-compress"></i></button>
   <!-- <input type="button" value="Connect" onClick="connect()"> -->
 </section>
-
+<audio></audio>
 <footer>
-  Powered by <a href="https://nexmo.com" target="_blank">Nexmo</a> Voice API
+  Powered by The <a href="https://nexmo.com" target="_blank">Nexmo</a> Voice API
 </footer>
 
 <script>
@@ -47,6 +46,7 @@ function resizeCanvas() {
 }
 
 function connect() {
+    //Connect Binary Websocket for Audio
     var ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
     ws.binaryType = 'arraybuffer';
     ws.onopen = function() {
@@ -65,6 +65,18 @@ function connect() {
 			playSound(data, playTime);
 	    });
     };
+    //Connect  Websocket for Events
+    var ews = new WebSocket("ws://audiosocket.sammachin.com:8000/browserevent");
+    ews.onopen = function() {
+      console.log('Event Socket Connected');
+    };
+    ews.onmessage = function(event) {
+        eventReceived(event.data);
+    };
+}
+
+function eventRecieved(data){
+    console.log(data);
 }
 
 function playSound(buffer, playTime) {
