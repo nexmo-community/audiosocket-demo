@@ -28,6 +28,8 @@
 var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 var count = 0;
 var startTime;
+var ws
+var ews
 
 var analyserNode = audioContext.createAnalyser();
 analyserNode.fftSize = 1024;
@@ -47,7 +49,7 @@ function resizeCanvas() {
 
 function connect() {
     //Connect Binary Websocket for Audio
-    var ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
+    ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
     ws.binaryType = 'arraybuffer';
     ws.onopen = function() {
       console.log('Connected');
@@ -66,12 +68,12 @@ function connect() {
 	    });
     };
     //Connect  Websocket for Events
-    var ews = new WebSocket("ws://audiosocket.sammachin.com:8000/browserevent");
+    ews = new WebSocket("ws://audiosocket.sammachin.com:8000/browserevent");
     ews.onopen = function() {
       console.log('Event Socket Connected');
     };
     ews.onmessage = function(event) {
-        eventReceived(event.data);
+        eventRecieved(event.data);
     };
 }
 

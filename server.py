@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 
 import tornado.httpserver
 import tornado.websocket
@@ -47,7 +46,7 @@ def buffer(data):
 		count += 1
 
 def broadcast(payload):
-	print "Sending {} bytes".format(str(len(payload)))
+	#print "Sending {} bytes".format(str(len(payload)))
 	for conn in clients:
 		conn.write_message(payload, binary=True)
 		
@@ -57,8 +56,10 @@ def broadcast_event(event):
 		conn.write_message(event)
 
 def process_event(event):
-	if event['direction'] == "outbound" and event['to'] ==  "ws://audiosocket.sammachin.com:8000/socket":
+	if event['direction'] == "outbound" and event['status'] ==  "answered":
+		global vapi_call_uuid
 		vapi_call_uuid = event['uuid']
+		print "VAPI CALL ID SET AS {}".format(vapi_call_uuid)
 	return True
 
 def check_clients():
@@ -94,8 +95,9 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 class EventHandler(tornado.web.RequestHandler):
-	def get(self):
+	def post(self):
 		event = json.loads(self.request.body)
+		print "EVENT RECEIVED {}".format(json.dumps(event))
 		process_event(event)
 		broadcast_event(event)        
 		self.set_status(204)
@@ -115,7 +117,7 @@ class ServerWSHandler(tornado.websocket.WebSocketHandler):
 		self.write_message('00000000', binary=True)	
 	def on_message(self, message):
 		if type(message) == str:
-			print("Binary Message recieved {}".format(str(len(message))))
+			#print("Binary Message recieved {}".format(str(len(message))))
 			self.write_message(message, binary=True)
 			buffer(message)
 		else:
