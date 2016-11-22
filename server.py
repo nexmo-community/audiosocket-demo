@@ -17,7 +17,7 @@ header = 'RIFF$\xe2\x04\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00
 payload = None #The buffered PCM frames into 200ms WAV file
 count = 0 #How many PCM frames I have in the buffer
 vapi_call_uuid = None
-
+vapi_connected = False
 #Create Nexmo Client
 client = nexmo.Client(key=API_KEY, secret=API_SECRET, application_id=APP_ID, private_key=PRIVATE_KEY)
 
@@ -63,9 +63,9 @@ def process_event(event):
 	return True
 
 def check_clients():
-	if (len(clients) == 1):
+	if (len(clients) == 1 and vapi_connected == False):
 		connect_vapi()
-	elif (len(clients) == 0):
+	elif (len(clients) == 0 and vapi_connected == True):
 		disconnect_vapi()
 	else:
 		return True
@@ -81,11 +81,15 @@ def connect_vapi():
 	                  }],
 	                 'from': {'type': 'phone', 'number': '442037831800'},
 	                 'answer_url': ['http://audiosocket.sammachin.com:8000/ncco']})
+	global vapi_connected
+	vapi_connected = True		 
 	return True
 
 
 def disconnect_vapi():
 	client.update_call(vapi_call_uuid, action='hangup')
+	global vapi_connected
+	vapi_connected = True
 	return True
 
 #The Handlers
