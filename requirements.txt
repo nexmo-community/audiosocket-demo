@@ -1,0 +1,3 @@
+nexmo==1.4.0
+tornado==4.4.2
+phonenumbers==7.7.5
