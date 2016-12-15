@@ -226,5 +226,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logging.getLogger().setLevel(logging.DEBUG)
     http_server = tornado.httpserver.HTTPServer(application)
-    http_server.listen(8000)
+    http_server.listen(CONFIG.port)
     tornado.ioloop.IOLoop.instance().start()
