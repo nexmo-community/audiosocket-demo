@@ -25,7 +25,6 @@ environment variables. The following configuration values are available:
 
 | Environment Variable | Required? | Description |
 | -------------------- | --------- | ----------- |
-| APP_ID | Yes | The id of your Nexmo application |
 | API_KEY | Yes | Your Nexmo API key (Get from the [Nexmo Dashboard](https://dashboard.nexmo.com/settings)) |
 | API_SECRET | Yes | Your Nexmo API secret (Get from the [Nexmo Dashboard](https://dashboard.nexmo.com/settings)) |
 | APP_ID | Yes | The id generated when you created your Nexmo application. |
@@ -34,11 +33,73 @@ environment variables. The following configuration values are available:
 | HOST | Yes | The hostname through which Nexmo can contact your server. (If you are using ngrok, this will look like `ABC123.ngrok.com`)
 | PORT | No | The port the Audiosocket server will bind to (Default: 8000) |
 
+## Configuring envdir
+
 You can use [Foreman](https://github.com/ddollar/foreman) or [Honcho](https://honcho.readthedocs.io/en/latest/), but we're going to
 use [envdir](https://pypi.python.org/pypi/envdir) because it supports multi-line
 values, and we need to supply a private key, which is quite long.
 
+`envdir` is configured by creating a directory which will contain one file per
+variable. The name of each file is the name of the variable, and the contents
+of the file provides the value for that environment variable.
+
 ```bash
 pip install envdir
 mkdir config    # We'll store our config in here
+```
+
+If you haven't already, create a Nexmo account, and then go to [the dashboard](https://dashboard.nexmo.com/settings). At the bottom of the settings
+page, you should see your API key and API secret. Paste each of these into
+files respectively called `config/API_KEY` and `config/API_SECRET`.
+
+## Hostname & Port
+
+Your audiosocket server needs to be available on a publicly hosted server. If
+you want to run it locally, we recommend running [ngrok](https://ngrok.com/) to
+create a publicly addressable tunnel to your computer.
+
+Whatever public hostname you have, you should enter it into `config/HOST`.
+You'll also need to know this hostname for the next step, creating a Nexmo
+application.
+
+The `PORT` configuration variable is only required if you don't want to host on
+port 8000. If you're running ngrok and you're not using port 8000 for anything
+else, just run `ngrok http 8000` to tunnel to your Audiosocket service.
+
+## Creating an application and adding a phone number
+
+Use the [Nexmo command-line tool](https://github.com/Nexmo/nexmo-cli) to create
+a new application and associate it with your server (substitute YOUR-HOSTNAME
+with the hostname you've put in your `HOST` config file):
+
+```bash
+nexmo app:create "Audiosocket Demo" "https://YOUR-HOSTNAME/ncco" "https://YOUR-HOSTNAME/event"
+```
+
+If it's successful, the `nexmo` tool will print out the new app ID and a
+private key. Put these, respectively in `config/APP_ID` and
+`config/PRIVATE_KEY`.
+
+In the [Nexmo Dashboard](https://dashboard.nexmo.com/your-numbers) buy a phone
+number if necessary, and click "Edit" in the "Your Numbers" page. Select
+"Forward to application" and enter the ID of the application you created.
+
+Paste the phone number into `config/PHONE_NUMBER`.
+
+At the end of this, your config directory should look something like this:
+
+```text
+config/
+├── API_KEY
+├── API_SECRET
+├── APP_ID
+├── HOST
+├── PHONE_NUMBER
+└── PRIVATE_KEY
+```
+
+Now you can run the audiosocket service with:
+
+```bash
+envdir config ./venv/python server.py
 ```
