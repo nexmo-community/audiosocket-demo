@@ -1,8 +1,11 @@
+#!/usr/bin/env python
+
 import json
 import logging
 import os.path
 
 import nexmo
+import phonenumbers
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
@@ -100,7 +103,7 @@ state = State()
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("static/index.html",
-                    phone_number=CONFIG.phone_number,
+                    phone_number=format_number(CONFIG.phone_number),
                     host=CONFIG.host)
 
 
@@ -182,6 +185,14 @@ class ClientEventWSHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         print("Browser Client Disconnected")
         state.eventclients.remove(self)
+
+
+def format_number(number):
+    if not number.startswith("+"):
+        number = "+" + number
+    return phonenumbers.format_number(
+        phonenumbers.parse(number, None),
+        phonenumbers.PhoneNumberFormat.NATIONAL)
 
 
 if CONFIG.fully_configured:
