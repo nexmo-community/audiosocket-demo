@@ -80,9 +80,20 @@ If it's successful, the `nexmo` tool will print out the new app ID and a
 private key. Put these, respectively in `config/APP_ID` and
 `config/PRIVATE_KEY`.
 
-In the [Nexmo Dashboard](https://dashboard.nexmo.com/your-numbers) buy a phone
-number if necessary, and click "Edit" in the "Your Numbers" page. Select
-"Forward to application" and enter the ID of the application you created.
+If you need to, find and buy a number:
+
+```bash
+# Skip the first 2 steps if you already have a Nexmo number to use.
+
+# Replace GB with your country-code:
+nexmo number:search GB —voice
+
+# Find a number you like, then buy it:
+nexmo number:buy [NUMBER]
+
+# Associate the number with your app-id:
+nexmo link:app [NUMBER] [APPID]
+```
 
 Paste the phone number into `config/PHONE_NUMBER`.
 
