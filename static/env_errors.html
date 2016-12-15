@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Environment Errors</title>
+</head>
+<body>
+    <h1>Environment Errors</h1>
+    <p>The following environment variables are missing:</p>
+    <ul>
+        {% for missing_env in missing_envs %}
+        <li>{{ missing_env }}</li>
+        {% end %}
+    </ul>
+</body>
+</html>
