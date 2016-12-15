@@ -1,2 +1,4 @@
-private.key
 .DS_Store
+configuration
+private.key
+venv

@@ -10,7 +10,7 @@
 </head>
 <body>
 <header>
-  <h1>Call +1 (973) 298-4300</h1>
+  <h1>Call {{ phone_number }}</h1>
   <p>Then click the Connect button to start.</p>
 </header>
 <section class="main">
@@ -49,7 +49,7 @@ function resizeCanvas() {
 
 function connect() {
     //Connect Binary Websocket for Audio
-    ws = new WebSocket("ws://audiosocket.sammachin.com:8000/browser");
+    ws = new WebSocket("wss://{{host}}/browser");
     ws.binaryType = 'arraybuffer';
     ws.onopen = function() {
       console.log('Connected');
@@ -68,7 +68,7 @@ function connect() {
 	    });
     };
     //Connect  Websocket for Events
-    ews = new WebSocket("ws://audiosocket.sammachin.com:8000/browserevent");
+    ews = new WebSocket("wss://{{host}}/browserevent");
     ews.onopen = function() {
       console.log('Event Socket Connected');
     };
@@ -121,3 +121,4 @@ function draw() {
 </script>
 </body>
 </html>
+
