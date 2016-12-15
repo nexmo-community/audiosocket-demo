@@ -62,6 +62,8 @@ Whatever public hostname you have, you should enter it into `config/HOST`.
 You'll also need to know this hostname for the next step, creating a Nexmo
 application.
 
+`echo 'myhostname.example.com' > config/HOST'`
+
 The `PORT` configuration variable is only required if you don't want to host on
 port 8000. If you're running ngrok and you're not using port 8000 for anything
 else, just run `ngrok http 8000` to tunnel to your Audiosocket service.
