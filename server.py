@@ -6,21 +6,25 @@ import os.path
 
 import nexmo
 import phonenumbers
-import tornado.httpserver
-import tornado.ioloop
-import tornado.web
-import tornado.websocket
+
+import jinja2
+from sanic import Sanic
+from sanic import response
 
 from creds import Config
 
 WAV_HEADER = 'RIFF$\xe2\x04\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>' \
              '\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\xe2\x04\x00'
 
+jinja = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(searchpath="./templates")
+)
+app = Sanic()
 
 CONFIG = Config()
 
 
-class State(object):
+class State:
     def __init__(self):
         # Browser websocket connections for receiving the binary audio data:
         self.clients = []
@@ -32,13 +36,13 @@ class State(object):
         self.vapi_connected = False
 
     def buffer(self, data):
-        print 'buffering:', len(data)
+        logging.debug('buffering: %d', len(data))
         if self.count == 0:
-            print 'initial batch'
+            logging.debug('initial batch')
             self.payload = WAV_HEADER + data
             self.count += 1
         elif self.count == 9:
-            print 'broadcasting'
+            logging.debug('broadcasting')
             self.payload += data
             self.broadcast(self.payload)
             self.count = 0
@@ -53,7 +57,7 @@ class State(object):
             conn.write_message(payload, binary=True)
 
     def broadcast_event(self, event):
-        print "Sending Event {}".format(event)
+        logging.debug("Sending Event %s", event)
         for conn in self.eventclients:
             conn.write_message(event)
 
@@ -62,11 +66,10 @@ class State(object):
         if event['direction'] == "outbound" and event['status'] == "answered":
             logging.debug("Setting call UUID to: %s", event['uuid'])
             self.vapi_call_uuid = event['uuid']
-            print "VAPI CALL ID SET AS {}".format(self.vapi_call_uuid)
+            logging.debug("VAPI CALL ID SET AS %s", self.vapi_call_uuid)
         return True
 
     def check_clients(self):
-        print "VAPI Connected: " + str(self.vapi_connected)
         logging.debug("Clients: %s, Connected: %s", self.clients, self.vapi_connected)
         if len(self.clients) == 1 and not self.vapi_connected:
             self.connect_vapi()
@@ -77,7 +80,8 @@ class State(object):
 
     def connect_vapi(self):
         logging.info("Instructing VAPI to connect")
-        response = client.create_call({'to': [{
+        call_response = client.create_call({
+            'to': [{
                 "type": "websocket",
                 "uri": "ws://{host}/socket".format(host=CONFIG.host),
                 "content-type": "audio/l16;rate=16000",
@@ -86,8 +90,9 @@ class State(object):
                 }
             }],
             'from': {'type': 'phone', 'number': CONFIG.phone_number},
-            'answer_url': ['https://{host}/ncco'.format(host=CONFIG.host)]})
-        logging.debug(repr(response))
+            'answer_url': ['https://{host}/ncco'.format(host=CONFIG.host)]
+        })
+        logging.debug(repr(call_response))
         self.vapi_connected = True
         return True
 
@@ -100,91 +105,89 @@ class State(object):
 state = State()
 
 
-class MainHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.render("static/index.html",
-                    phone_number=format_number(CONFIG.phone_number),
-                    host=CONFIG.host)
+@app.route("/")
+async def index_handler(request):
+    if CONFIG.fully_configured:
+        return response.html(jinja.get_template("index.html").render(
+            phone_number=format_number(CONFIG.phone_number),
+            host=CONFIG.host))
+    else:
+        return response.html(jinja.get_template("env_errors.html").render(
+            missing_envs=CONFIG.missing_keys))
 
 
-class EnvErrorsHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.render("static/env_errors.html", missing_envs=CONFIG.missing_keys)
+@app.route("/event", methods=["POST", ])
+async def event_handler(request):
+    event = request.json
+    logging.debug("EVENT RECEIVED %s", json.dumps(event))
+    state.process_event(event)
+    state.broadcast_event(event)
+    return response.raw('', status=204)
 
 
-class EventHandler(tornado.web.RequestHandler):
-    def post(self):
-        event = json.loads(self.request.body)
-        print "EVENT RECEIVED {}".format(json.dumps(event))
-        state.process_event(event)
-        state.broadcast_event(event)
-        self.set_status(204)
+@app.route("/ncco")
+async def ncco_handler(request):
+    return response.json([
+        {
+            "action": "talk",
+            "text": "Connecting to Audio Socket Conference",
+        },
+        {
+            "action": "conversation",
+            "name": "audiosocket",
+            "eventUrl": ["https://{host}/event".format(host=CONFIG.host)],
+        }
+    ])
 
 
-class NCCOHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.set_header('Content-Type', 'application/json')
-        self.write(json.dumps([
-            {
-                "action": "talk",
-                "text": "Connecting to Audio Socket Conference",
-            },
-            {
-                "action": "conversation",
-                "name": "audiosocket",
-                "eventUrl": ["https://{host}/event".format(host=CONFIG.host)],
-            }
-        ]))
+connections = set()
 
 
-class ServerWSHandler(tornado.websocket.WebSocketHandler):
-    connections = []
-
-    def open(self):
-        print("VAPI Client Connected")
-        self.connections.append(self)
-        self.write_message('00000000', binary=True)
-
-    def on_message(self, message):
-        if type(message) == str:
-            # print("Binary Message received {}".format(str(len(message))))
-            self.write_message(message, binary=True)
-            state.buffer(message)
-        else:
-            print(message)
-            self.write_message('ok')
-
-    def on_close(self):
-        print("VAPI Client Disconnected")
-        self.connections.remove(self)
+@app.websocket("/socket")
+async def server_ws_handler(request, websocket):
+    logging.debug("VAPI Client Connected")
+    connections.add(websocket)
+    await websocket.send('00000000', binary=True)
+    try:
+        while True:
+            message = await websocket.recv()
+            if type(message) == str:
+                await websocket.send(message, binary=True)
+                state.buffer(message)
+            else:
+                logging.debug(message)
+                await websocket.send('ok')
+    finally:
+        logging.debug("VAPI Client Disconnected")
+        connections.remove(websocket)
 
 
-class ClientWSHandler(tornado.websocket.WebSocketHandler):
-    def open(self):
-        print("Browser Client Connected")
-        state.clients.append(self)
+@app.websocket("/browser")
+async def client_ws_handler(request, websocket):
+    logging.debug("Browser Client Connected")
+    state.clients.append(websocket)
+    state.check_clients()
+    try:
+        while True:
+            await websocket.recv()
+            logging.debug("Browser Client Message Received")
+    finally:
+        logging.debug("Browser Client Disconnected")
+        state.clients.remove(websocket)
         state.check_clients()
 
-    def on_message(self, message):
-        print("Browser Client Message Received")
 
-    def on_close(self):
-        print("Browser Client Disconnected")
-        state.clients.remove(self)
-        state.check_clients()
-
-
-class ClientEventWSHandler(tornado.websocket.WebSocketHandler):
-    def open(self):
-        print("Browser Client Connected")
-        state.eventclients.append(self)
-
-    def on_message(self, message):
-        print("Browser Client Message Received")
-
-    def on_close(self):
-        print("Browser Client Disconnected")
-        state.eventclients.remove(self)
+@app.websocket("/browserevent")
+async def browser_event_ws_handler(request, websocket):
+    logging.debug("Browser Client Connected")
+    state.eventclients.append(websocket)
+    try:
+        while True:
+            await websocket.recv()
+            logging.debug("Browser Client Message Received")
+    finally:
+        logging.debug("Browser Client Disconnected")
+        state.eventclients.remove(websocket)
 
 
 def format_number(number):
@@ -195,7 +198,12 @@ def format_number(number):
         phonenumbers.PhoneNumberFormat.NATIONAL)
 
 
-if CONFIG.fully_configured:
+def main():
+    global client
+
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
+
     client = nexmo.Client(
         key=CONFIG.api_key,
         secret=CONFIG.api_secret,
@@ -206,25 +214,10 @@ if CONFIG.fully_configured:
     # The Server Config
     static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                'static/')
-    print static_path
-    application = tornado.web.Application([
-        (r"/", MainHandler),
-        (r"/event", EventHandler),
-        (r"/ncco", NCCOHandler),
-        (r'/socket', ServerWSHandler),
-        (r'/browser', ClientWSHandler),
-        (r'/browserevent', ClientEventWSHandler),
-        (r'/s/(.*)', tornado.web.StaticFileHandler, {'path': static_path})
-    ])
-else:
-    application = tornado.web.Application([
-        (r"/", EnvErrorsHandler),
-    ])
+    app.static('/s', static_path)
+    app.run(port=CONFIG.port)
+
 
 # Running It
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger().setLevel(logging.DEBUG)
-    http_server = tornado.httpserver.HTTPServer(application)
-    http_server.listen(CONFIG.port)
-    tornado.ioloop.IOLoop.instance().start()
+    main()
