@@ -35,7 +35,7 @@ class State:
         self.vapi_call_uuid = None
         self.vapi_connected = False
 
-    def buffer(self, data):
+    async def buffer(self, data):
         logging.debug('buffering: %d', len(data))
         if self.count == 0:
             logging.debug('initial batch')
@@ -44,22 +44,26 @@ class State:
         elif self.count == 9:
             logging.debug('broadcasting')
             self.payload += data
-            self.broadcast(self.payload)
+            await self.broadcast(self.payload)
             self.count = 0
             self.payload = None
         else:
             self.payload += data
             self.count += 1
 
-    def broadcast(self, payload):
+    async def broadcast(self, payload):
+        logging.debug("BROADCASTING!")
         # print "Sending {} bytes".format(str(len(payload)))
         for conn in self.clients:
-            conn.write_message(payload, binary=True)
+            logging.debug("Payload type: %s", type(payload))
+            await conn.send(payload)
 
-    def broadcast_event(self, event):
+    async def broadcast_event(self, event):
         logging.debug("Sending Event %s", event)
         for conn in self.eventclients:
-            conn.write_message(event)
+            msg = json.dumps(event).encode("utf-8")
+            logging.debug("Message type: %s", type(msg))
+            await conn.send(msg)
 
     def process_event(self, event):
         logging.debug("PROCESSING EVENT: %s", event)
@@ -121,8 +125,8 @@ async def event_handler(request):
     event = request.json
     logging.debug("EVENT RECEIVED %s", json.dumps(event))
     state.process_event(event)
-    state.broadcast_event(event)
-    return response.raw('', status=204)
+    await state.broadcast_event(event)
+    return response.raw(b'', status=204)
 
 
 @app.route("/ncco")
@@ -147,16 +151,16 @@ connections = set()
 async def server_ws_handler(request, websocket):
     logging.debug("VAPI Client Connected")
     connections.add(websocket)
-    await websocket.send('00000000', binary=True)
+    await websocket.send(b'00000000')
     try:
         while True:
             message = await websocket.recv()
             if type(message) == str:
-                await websocket.send(message, binary=True)
-                state.buffer(message)
+                await websocket.send(message.encode('utf-8'))
+                await state.buffer(message)
             else:
                 logging.debug(message)
-                await websocket.send('ok')
+                await websocket.send(b'ok')
     finally:
         logging.debug("VAPI Client Disconnected")
         connections.remove(websocket)
@@ -204,12 +208,13 @@ def main():
     logging.basicConfig(level=logging.INFO)
     logging.getLogger().setLevel(logging.DEBUG)
 
-    client = nexmo.Client(
-        key=CONFIG.api_key,
-        secret=CONFIG.api_secret,
-        application_id=CONFIG.app_id,
-        private_key=CONFIG.private_key,
-    )
+    if CONFIG.fully_configured:
+        client = nexmo.Client(
+            key=CONFIG.api_key,
+            secret=CONFIG.api_secret,
+            application_id=CONFIG.app_id,
+            private_key=open(CONFIG.private_key).read(),
+        )
 
     # The Server Config
     static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
