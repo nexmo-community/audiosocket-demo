@@ -58,10 +58,12 @@ function connect() {
     };
 
     ws.onmessage = function(event) {
+        console.log("Audio data")
 		if (count ==0){
 			startTime = audioContext.currentTime;
 		}
 	  audioContext.decodeAudioData(event.data, function(data) {
+	      console.log("Audio data decoded")
 			count ++;
 			var playTime = startTime + (count *0.2)
 			playSound(data, playTime);
@@ -78,7 +80,7 @@ function connect() {
 }
 
 function eventRecieved(data){
-    console.log(data);
+    console.log("Event:", data);
 }
 
 function playSound(buffer, playTime) {

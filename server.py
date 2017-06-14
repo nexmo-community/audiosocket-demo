@@ -13,8 +13,8 @@ from sanic import response
 
 from creds import Config
 
-WAV_HEADER = 'RIFF$\xe2\x04\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>' \
-             '\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\xe2\x04\x00'
+WAV_HEADER = b'RIFF$\xe2\x04\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>' \
+             b'\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\xe2\x04\x00'
 
 jinja = jinja2.Environment(
     loader=jinja2.FileSystemLoader(searchpath="./templates")
@@ -23,8 +23,11 @@ app = Sanic()
 
 CONFIG = Config()
 
+log = logging.getLogger("audiosocket")
+
 
 class State:
+
     def __init__(self):
         # Browser websocket connections for receiving the binary audio data:
         self.clients = []
@@ -36,13 +39,10 @@ class State:
         self.vapi_connected = False
 
     async def buffer(self, data):
-        logging.debug('buffering: %d', len(data))
         if self.count == 0:
-            logging.debug('initial batch')
             self.payload = WAV_HEADER + data
             self.count += 1
         elif self.count == 9:
-            logging.debug('broadcasting')
             self.payload += data
             await self.broadcast(self.payload)
             self.count = 0
@@ -52,29 +52,21 @@ class State:
             self.count += 1
 
     async def broadcast(self, payload):
-        logging.debug("BROADCASTING!")
         # print "Sending {} bytes".format(str(len(payload)))
         for conn in self.clients:
-            logging.debug("Payload type: %s", type(payload))
             await conn.send(payload)
 
     async def broadcast_event(self, event):
-        logging.debug("Sending Event %s", event)
         for conn in self.eventclients:
             msg = json.dumps(event).encode("utf-8")
-            logging.debug("Message type: %s", type(msg))
             await conn.send(msg)
 
     def process_event(self, event):
-        logging.debug("PROCESSING EVENT: %s", event)
         if event['direction'] == "outbound" and event['status'] == "answered":
-            logging.debug("Setting call UUID to: %s", event['uuid'])
             self.vapi_call_uuid = event['uuid']
-            logging.debug("VAPI CALL ID SET AS %s", self.vapi_call_uuid)
         return True
 
     def check_clients(self):
-        logging.debug("Clients: %s, Connected: %s", self.clients, self.vapi_connected)
         if len(self.clients) == 1 and not self.vapi_connected:
             self.connect_vapi()
         elif len(self.clients) == 0 and self.vapi_connected:
@@ -83,7 +75,7 @@ class State:
             return True
 
     def connect_vapi(self):
-        logging.info("Instructing VAPI to connect")
+        log.info("Instructing VAPI to connect")
         call_response = client.create_call({
             'to': [{
                 "type": "websocket",
@@ -96,7 +88,6 @@ class State:
             'from': {'type': 'phone', 'number': CONFIG.phone_number},
             'answer_url': ['https://{host}/ncco'.format(host=CONFIG.host)]
         })
-        logging.debug(repr(call_response))
         self.vapi_connected = True
         return True
 
@@ -123,7 +114,6 @@ async def index_handler(request):
 @app.route("/event", methods=["POST", ])
 async def event_handler(request):
     event = request.json
-    logging.debug("EVENT RECEIVED %s", json.dumps(event))
     state.process_event(event)
     await state.broadcast_event(event)
     return response.raw(b'', status=204)
@@ -149,48 +139,39 @@ connections = set()
 
 @app.websocket("/socket")
 async def server_ws_handler(request, websocket):
-    logging.debug("VAPI Client Connected")
     connections.add(websocket)
     await websocket.send(b'00000000')
     try:
         while True:
             message = await websocket.recv()
-            if type(message) == str:
-                await websocket.send(message.encode('utf-8'))
+            if type(message) == bytes:
+                await websocket.send(message)
                 await state.buffer(message)
             else:
-                logging.debug(message)
-                await websocket.send(b'ok')
+                await websocket.send('ok')
     finally:
-        logging.debug("VAPI Client Disconnected")
         connections.remove(websocket)
 
 
 @app.websocket("/browser")
 async def client_ws_handler(request, websocket):
-    logging.debug("Browser Client Connected")
     state.clients.append(websocket)
     state.check_clients()
     try:
         while True:
             await websocket.recv()
-            logging.debug("Browser Client Message Received")
     finally:
-        logging.debug("Browser Client Disconnected")
         state.clients.remove(websocket)
         state.check_clients()
 
 
 @app.websocket("/browserevent")
 async def browser_event_ws_handler(request, websocket):
-    logging.debug("Browser Client Connected")
     state.eventclients.append(websocket)
     try:
         while True:
             await websocket.recv()
-            logging.debug("Browser Client Message Received")
     finally:
-        logging.debug("Browser Client Disconnected")
         state.eventclients.remove(websocket)
 
 
