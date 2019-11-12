@@ -59,10 +59,11 @@ class State(object):
 
     def process_event(self, event):
         logging.debug("PROCESSING EVENT: %s", event)
-        if event['direction'] == "outbound" and event['status'] == "answered":
-            logging.debug("Setting call UUID to: %s", event['uuid'])
-            self.vapi_call_uuid = event['uuid']
-            print "VAPI CALL ID SET AS {}".format(self.vapi_call_uuid)
+        if 'direction' in event:
+            if event['direction'] == "outbound" and event['status'] == "answered":
+                logging.debug("Setting call UUID to: %s", event['uuid'])
+                self.vapi_call_uuid = event['uuid']
+                print "VAPI CALL ID SET AS {}".format(self.vapi_call_uuid)
         return True
 
     def check_clients(self):
