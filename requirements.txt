@@ -1,5 +1,4 @@
 websockets==6.0
 sanic==0.7.0
 nexmo==1.4.0
-tornado==4.4.2
 phonenumbers==7.7.5
